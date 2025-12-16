@@ -10,9 +10,10 @@ Esta guía te explicará paso a paso cómo configurar GitHub Actions para tu pro
 2. [Paso 1: Preparar el Repositorio](#paso-1-preparar-el-repositorio)
 3. [Paso 2: Subir los Archivos de Workflow](#paso-2-subir-los-archivos-de-workflow)
 4. [Paso 3: Configurar Secrets en GitHub](#paso-3-configurar-secrets-en-github)
-5. [Paso 4: Probar el Pipeline](#paso-4-probar-el-pipeline)
-6. [Paso 5: Verificar que Funciona](#paso-5-verificar-que-funciona)
-7. [Solución de Problemas](#solución-de-problemas)
+5. [🖥️ GUÍA: Crear Instancia EC2 Paso a Paso](#️-guía-crear-instancia-ec2-paso-a-paso) ⬅️ **Si no tienes EC2, empieza aquí**
+6. [Paso 4: Probar el Pipeline](#paso-4-probar-el-pipeline)
+7. [Paso 5: Verificar que Funciona](#paso-5-verificar-que-funciona)
+8. [Solución de Problemas](#solución-de-problemas)
 
 ---
 
@@ -130,7 +131,7 @@ Necesitas agregar estos 4 secrets:
 
 **Cómo obtenerla:**
 - Si ya tienes una instancia EC2, descargaste un archivo `.pem` cuando la creaste
-- Si no lo tienes, necesitas crear una instancia EC2 primero
+- Si no lo tienes, necesitas crear una instancia EC2 primero → **[Ver guía paso a paso aquí](#crear-instancia-ec2-paso-a-paso)**
 
 **Cómo agregarlo:**
 1. Abre el archivo `.pem` con un editor de texto (o ejecuta: `cat tu-clave.pem`)
@@ -193,6 +194,167 @@ Después de agregar los 4 secrets, deberías ver una lista como esta:
 ✅ EC2_SSH_KEY
 ✅ EC2_USER
 ```
+
+---
+
+## 🖥️ GUÍA: Crear Instancia EC2 Paso a Paso
+
+Si no tienes una instancia EC2, sigue estos pasos para crearla desde cero:
+
+### Paso 1: Acceder a AWS Console
+
+1. **Ve a la consola de AWS:**
+   - Abre tu navegador y ve a: https://console.aws.amazon.com
+   - Inicia sesión con tu cuenta de AWS
+   - Si no tienes cuenta, crea una en https://aws.amazon.com (tiene capa gratuita)
+
+2. **Busca el servicio EC2:**
+   - En la barra de búsqueda superior (dice "Search for services"), escribe: `EC2`
+   - Haz click en **EC2** (el servicio de AWS)
+
+### Paso 2: Lanzar una Nueva Instancia
+
+1. **Ir a Instancias:**
+   - En el menú lateral izquierdo, busca **Instances** (Instancias)
+   - Click en **Instances**
+
+2. **Lanzar instancia:**
+   - Click en el botón naranja **"Launch instance"** (Lanzar instancia) en la parte superior derecha
+
+### Paso 3: Configurar la Instancia
+
+#### 3.1 Nombre de la Instancia (Opcional)
+- **Name**: Puedes poner un nombre como `backend-server` o `mi-aplicacion`
+
+#### 3.2 Elegir AMI (Imagen del Sistema Operativo)
+- **Busca y selecciona:**
+  - **Amazon Linux 2023 AMI** (recomendado para principiantes) 
+  - O **Ubuntu Server 22.04 LTS** si prefieres Ubuntu
+- Estas son gratuitas en la capa gratuita de AWS
+
+#### 3.3 Tipo de Instancia
+- **Selecciona:** `t2.micro` o `t3.micro`
+  - Estas son **gratuitas** si tienes derecho a la capa gratuita
+  - Son suficientes para desarrollo y pruebas
+
+#### 3.4 Par de Claves (Key Pair) - ⚠️ MUY IMPORTANTE
+
+1. **Crear nuevo par de claves:**
+   - En "Key pair (login)", haz click en **"Create new key pair"**
+   - **Nombre:** Pon un nombre como `mi-servidor-ec2` o `backend-key`
+   - **Tipo de clave:** Selecciona `RSA`
+   - **Formato:** Selecciona `.pem` (para Mac/Linux) o `.ppk` (solo para Windows con PuTTY)
+   - Click en **"Create key pair"**
+
+2. **⚠️ IMPORTANTE - Descarga automática:**
+   - El archivo `.pem` se descargará automáticamente a tu carpeta de Descargas
+   - **¡GUARDA ESTE ARCHIVO EN UN LUGAR SEGURO!** 
+   - Si lo pierdes, NO podrás conectarte a tu servidor
+   - Este es el archivo que usarás como `EC2_SSH_KEY` en GitHub
+
+#### 3.5 Configuración de Red (Network Settings)
+
+1. **Permitir tráfico SSH:**
+   - Asegúrate que esté marcada la opción **"Allow SSH traffic from"**
+   - Puedes dejar "Anywhere (0.0.0.0/0)" para desarrollo, o restringir a tu IP
+
+2. **Agregar reglas de seguridad (opcional pero recomendado):**
+   - Click en **"Add security group rule"** para agregar más puertos:
+   - **Puerto 3010** (puerto de tu backend):
+     - Type: `Custom TCP`
+     - Port range: `3010`
+     - Source: `0.0.0.0/0` (o tu IP específica)
+   - **Puerto 80** (HTTP, si necesitas web):
+     - Type: `HTTP`
+     - Source: `0.0.0.0/0`
+
+#### 3.6 Configurar Storage
+
+- **Deja el valor por defecto:** 8 GB es suficiente y está en la capa gratuita
+- Puedes aumentar si lo necesitas (puede tener costo adicional)
+
+### Paso 4: Lanzar la Instancia
+
+1. **Revisar configuración:**
+   - Revisa que todo esté como quieres
+   - En la parte inferior derecha verás un resumen de costos
+
+2. **Lanzar:**
+   - Click en el botón naranja **"Launch instance"** en la parte inferior derecha
+
+3. **Confirmación:**
+   - Verás un mensaje de éxito: "Successfully initiated launch..."
+   - Click en **"View all instances"** o **"View instance"**
+
+### Paso 5: Obtener Información de tu Instancia
+
+1. **En la lista de instancias:**
+   - Verás tu nueva instancia (puede tardar 1-2 minutos en aparecer como "running")
+   - Selecciona la instancia haciendo click en el checkbox
+
+2. **Ver detalles importantes:**
+   - En la parte inferior, en la pestaña **"Details"**, busca:
+     - **Public IPv4 address**: Esta es tu `EC2_HOST` para GitHub (ejemplo: `54.123.45.67`)
+     - **Public IPv4 DNS**: También puedes usar este (ejemplo: `ec2-54-123-45-67.compute-1.amazonaws.com`)
+     - **Instance state**: Debe decir "running" (en ejecución)
+
+3. **Anotar información:**
+   - 📝 Anota la **Public IPv4 address** - la necesitarás para `EC2_HOST`
+   - 📝 Recuerda dónde guardaste el archivo `.pem` - lo necesitarás para `EC2_SSH_KEY`
+   - 📝 El usuario depende de la AMI que elegiste:
+     - **Amazon Linux**: `ec2-user`
+     - **Ubuntu**: `ubuntu`
+
+### Paso 6: Configurar el Servidor (Opcional pero Recomendado)
+
+Después de crear la instancia, deberías conectarte y configurarla:
+
+1. **Conectarse por SSH:**
+   ```bash
+   # En tu terminal local
+   cd ~/Downloads  # O donde guardaste el archivo .pem
+   chmod 400 mi-servidor-ec2.pem  # Dar permisos correctos al archivo
+   ssh -i mi-servidor-ec2.pem ec2-user@TU-IP-PUBLICA
+   # Reemplaza:
+   # - mi-servidor-ec2.pem con el nombre de tu archivo
+   # - ec2-user con el usuario correcto (ubuntu si usaste Ubuntu)
+   # - TU-IP-PUBLICA con la IP que anotaste antes
+   ```
+
+2. **Instalar Node.js (si usas Amazon Linux):**
+   ```bash
+   # Una vez conectado al servidor
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+   . ~/.nvm/nvm.sh
+   nvm install 18
+   nvm use 18
+   ```
+
+3. **Instalar Node.js (si usas Ubuntu):**
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   ```
+
+4. **Instalar PM2 (gestor de procesos):**
+   ```bash
+   sudo npm install -g pm2
+   ```
+
+5. **Crear directorio para la aplicación:**
+   ```bash
+   mkdir -p /home/ec2-user/app  # O /home/ubuntu/app si usas Ubuntu
+   ```
+
+### Paso 7: Ya Tienes Todo Listo
+
+Ahora tienes:
+- ✅ Instancia EC2 creada y corriendo
+- ✅ Archivo `.pem` descargado
+- ✅ IP pública anotada
+- ✅ Usuario identificado (`ec2-user` o `ubuntu`)
+
+**Siguiente paso:** Volver a la sección [3.2 Agregar los Secrets necesarios](#32-agregar-los-secrets-necesarios) para configurar GitHub con esta información.
 
 ---
 

@@ -108,7 +108,9 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${DEPLOY_PATH}"
           
           # Copiar archivos comprimidos al servidor
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./deploy-artifacts/deploy.tar.gz ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+          # Nota: GitHub Actions preserva la estructura de directorios del upload, por lo que
+          # el archivo se descarga en ./deploy-artifacts/backend/deploy.tar.gz
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./deploy-artifacts/backend/deploy.tar.gz ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
           
           # Descomprimir y configurar en el servidor
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << EOF
