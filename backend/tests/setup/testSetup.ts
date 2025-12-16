@@ -7,6 +7,16 @@
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test_db';
 
+// Silenciar console.error durante los tests (el código real los usa pero no queremos verlos en los tests)
+const originalError = console.error;
+beforeAll(() => {
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.error = originalError;
+});
+
 // Limpiar mocks antes de cada test
 beforeEach(() => {
   jest.clearAllMocks();
