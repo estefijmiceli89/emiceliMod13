@@ -1,0 +1,66 @@
+name: CI - Continuous Integration
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+      - master
+
+jobs:
+  test-backend:
+    name: Tests del Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Instalar dependencias
+        working-directory: ./backend
+        run: npm install
+      
+      - name: Ejecutar tests
+        working-directory: ./backend
+        run: npm test
+
+  build-backend:
+    name: Build del Backend
+    runs-on: ubuntu-latest
+    needs: test-backend
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Instalar dependencias
+        working-directory: ./backend
+        run: npm install
+      
+      - name: Compilar TypeScript
+        working-directory: ./backend
+        run: npm run build
+      
+      - name: Verificar build
+        working-directory: ./backend
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Error: El directorio dist no fue generado"
+            exit 1
+          fi
+          echo "Build completado exitosamente"
+

@@ -1,0 +1,130 @@
+name: CD - Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  test-backend:
+    name: Tests del Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Instalar dependencias
+        working-directory: ./backend
+        run: npm install
+      
+      - name: Ejecutar tests unitarios e integración
+        working-directory: ./backend
+        run: npm test
+
+  build-backend:
+    name: Build del Backend
+    runs-on: ubuntu-latest
+    needs: test-backend
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+      
+      - name: Instalar dependencias
+        working-directory: ./backend
+        run: npm install
+      
+      - name: Compilar TypeScript
+        working-directory: ./backend
+        run: npm run build
+      
+      - name: Verificar build
+        working-directory: ./backend
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Error: El directorio dist no fue generado"
+            exit 1
+          fi
+          echo "Build completado exitosamente"
+      
+      - name: Preparar artefactos para despliegue
+        working-directory: ./backend
+        run: |
+          tar -czf deploy.tar.gz dist/ package.json package-lock.json prisma/
+      
+      - name: Subir artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: backend/deploy.tar.gz
+          retention-days: 1
+
+  deploy-backend:
+    name: Despliegue en EC2
+    runs-on: ubuntu-latest
+    needs: build-backend
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+      
+      - name: Descargar artefactos
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: ./deploy-artifacts
+      
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Desplegar en EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          DEPLOY_PATH: ${{ secrets.EC2_DEPLOY_PATH }}
+        run: |
+          # Crear directorio de despliegue si no existe
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${DEPLOY_PATH}"
+          
+          # Copiar archivos comprimidos al servidor
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./deploy-artifacts/deploy.tar.gz ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}/
+          
+          # Descomprimir y configurar en el servidor
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << EOF
+            cd ${DEPLOY_PATH}
+            tar -xzf deploy.tar.gz
+            npm install --production
+            npx prisma generate || echo "Prisma generate opcional"
+            
+            # Reiniciar aplicación con PM2 si existe, sino iniciar directamente
+            if command -v pm2 &> /dev/null; then
+              pm2 restart backend || pm2 start dist/index.js --name backend || node dist/index.js &
+            else
+              pkill -f "node dist/index.js" || true
+              nohup node dist/index.js > app.log 2>&1 &
+            fi
+          EOF
+          
+          echo "Despliegue completado exitosamente"
+
