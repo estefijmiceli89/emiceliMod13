@@ -70,14 +70,20 @@ Visita: https://github.com/nektos/act#installation
 ### Usar act
 
 ```bash
-# Ejecutar el workflow ci.yml
+# Ejecutar el workflow ci.yml (este funciona bien con act)
 act pull_request
 
 # O ejecutar un workflow específico
 act -W .github/workflows/ci.yml
 ```
 
-**Nota:** `act` simula el entorno de GitHub Actions, pero puede tener algunas diferencias. Es útil para pruebas rápidas, pero no es 100% idéntico al entorno real.
+**⚠️ Limitaciones de `act`:**
+- **NO puede simular `actions/upload-artifact`** - Esta acción requiere el runtime de GitHub Actions y fallará con `ACTIONS_RUNTIME_TOKEN env variable` error
+- El workflow `ci.yml` funciona bien porque no usa artefactos
+- El workflow `pipeline.yml` fallará en el paso de "Subir artefactos" cuando uses `act`
+- **Esto es NORMAL y esperado** - No significa que haya un error en tu código
+
+**Solución:** Para probar el workflow completo localmente, usa el script `test-ci-locally.sh` en lugar de `act` para el workflow de deployment.
 
 ---
 
